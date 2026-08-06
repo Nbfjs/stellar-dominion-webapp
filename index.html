@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Stellar Dominion - 2D Mini App</title>
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Phaser 3 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.0/dist/phaser.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="game-container"></div>
+
+    <div id="ui-layer">
+        <!-- Top Resource Header -->
+        <div class="header-card">
+            <h2 id="planet-name">🪐 Аванпост Альфа-1</h2>
+            <div class="resource-bar">
+                <div class="res-item">⛏️ <span id="res-metal">0</span></div>
+                <div class="res-item">💎 <span id="res-crystal">0</span></div>
+                <div class="res-item">🧪 <span id="res-deuterium">0</span></div>
+            </div>
+        </div>
+
+        <!-- Mode Switcher Navigation Tabs -->
+        <div class="tab-bar">
+            <button id="tab-hangar" class="tab-btn active" onclick="switchMode('hangar')">🛸 Ангар и Верфь</button>
+            <button id="tab-runner" class="tab-btn" onclick="switchMode('runner')">🎮 Астероидный Вылет</button>
+        </div>
+
+        <!-- Minigame Overlay Hud -->
+        <div id="minigame-hud" class="minigame-hud hidden">
+            <div class="score-card">💎 Собрано: <span id="game-crystals">0</span> | ⏱️ Время: <span id="game-timer">20</span>s</div>
+            <div class="controls-hint">💡 Тяните или зажмите пальцем/стрелочками для управления кораблем!</div>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="footer-card">
+            <button class="btn btn-action" id="main-action-btn" onclick="handleMainAction()">🚀 Сменить Корабль в Ангаре</button>
+            <button class="btn btn-secondary" onclick="closeWebApp()">❌ Закрыть</button>
+        </div>
+    </div>
+
+    <script src="/static/game.js"></script>
+</body>
+</html>
