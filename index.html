@@ -8,14 +8,14 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Phaser 3 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.0/dist/phaser.min.js"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="style.css?v=3.5">
 </head>
 <body>
     <div id="game-container"></div>
 
     <div id="ui-layer">
         <!-- Top Resource Header -->
-        <div class="header-card">
+        <div id="main-header" class="header-card">
             <h2 id="planet-name">🪐 Аванпост Альфа-1</h2>
             <div class="resource-bar">
                 <div class="res-item">⛏️ <span id="res-metal">0</span></div>
@@ -25,24 +25,23 @@
         </div>
 
         <!-- Mode Switcher Navigation Tabs -->
-        <div class="tab-bar">
+        <div id="tab-bar" class="tab-bar">
             <button id="tab-hangar" class="tab-btn active" onclick="switchMode('hangar')">🛸 Ангар и Верфь</button>
             <button id="tab-runner" class="tab-btn" onclick="switchMode('runner')">🎮 Астероидный Вылет</button>
         </div>
 
-        <!-- Minigame Overlay Hud -->
-        <div id="minigame-hud" class="minigame-hud hidden">
-            <div class="score-card">💎 Собрано: <span id="game-crystals">0</span> | ⏱️ Время: <span id="game-timer">20</span>s</div>
-            <div class="controls-hint">💡 Тяните или зажмите пальцем/стрелочками для управления кораблем!</div>
+        <!-- Active Flight Mode HUD (Visible ONLY during flight) -->
+        <div id="flight-hud" class="minigame-hud" style="display: none;">
+            <div class="score-card">💎 Собрано: <span id="hud-crystals">0</span> | ⏱️ Время: <span id="hud-timer">20</span>s</div>
         </div>
 
         <!-- Bottom Controls -->
-        <div class="footer-card">
-            <button class="btn btn-action" id="main-action-btn" onclick="handleMainAction()">🚀 Сменить Корабль в Ангаре</button>
+        <div id="main-footer" class="footer-card">
+            <button class="btn btn-action" id="main-action-btn" onclick="handleMainAction()">🛸 Корабль: ⚡ Скоростной Перехватчик (Сменить)</button>
             <button class="btn btn-secondary" onclick="closeWebApp()">❌ Закрыть</button>
         </div>
     </div>
 
-    <script src="/static/game.js"></script>
+    <script src="game.js?v=3.5"></script>
 </body>
 </html>
