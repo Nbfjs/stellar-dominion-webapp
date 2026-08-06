@@ -15,13 +15,12 @@ let playerData = {
     metal: 500,
     crystal: 200,
     deuterium: 50,
-    selectedShip: 0 // 0: Drone, 1: Scout, 2: Cruiser
+    selectedShip: 0 // 0: Scout, 1: Cruiser
 };
 
 const SHIPS = [
-    { name: '🛸 Дрон-добытчик', color: 0x0284c7, speed: 300, yieldMul: 1.0 },
-    { name: '🛰️ Скоростной Разведчик', color: 0x38bdf8, speed: 450, yieldMul: 1.2 },
-    { name: '⚔️ Тяжелый Крейсер', color: 0x818cf8, speed: 220, yieldMul: 1.8 }
+    { id: 'ship_scout', name: '⚡ Скоростной Перехватчик', speed: 500, yieldMul: 1.2, scale: 0.25 },
+    { id: 'ship_cruiser', name: '⚔️ Тяжелый Крейсер', speed: 350, yieldMul: 1.8, scale: 0.28 }
 ];
 
 // Phaser 3 Configuration
@@ -31,6 +30,10 @@ const config = {
     width: window.innerWidth,
     height: window.innerHeight,
     backgroundColor: '#030712',
+    physics: {
+        default: 'arcade',
+        arcade: { debug: false }
+    },
     scene: {
         preload: preload,
         create: create,
@@ -43,7 +46,7 @@ const game = new Phaser.Game(config);
 // Phaser objects
 let sceneRef;
 let stars = [];
-let hangarShipGroup;
+let hangarContainer;
 let playerShip;
 let itemsGroup;
 let meteorsGroup;
@@ -56,7 +59,11 @@ let collectedCrystals = 0;
 let collectedMetal = 0;
 let cursors;
 
-function preload() {}
+function preload() {
+    this.load.image('ship_scout', 'assets/scout.png');
+    this.load.image('ship_cruiser', 'assets/cruiser.png');
+    this.load.image('asteroid', 'assets/asteroid.png');
+}
 
 function create() {
     sceneRef = this;
@@ -64,10 +71,16 @@ function create() {
     const height = sceneRef.cameras.main.height;
 
     // 1. Starfield Background
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 150; i++) {
         const x = Phaser.Math.Between(0, width);
         const y = Phaser.Math.Between(0, height);
-        const star = sceneRef.add.circle(x, y, Phaser.Math.FloatBetween(0.5, 2.0), 0xffffff, Phaser.Math.FloatBetween(0.3, 0.9));
+        const star = sceneRef.add.circle(
+            x, y,
+            Phaser.Math.FloatBetween(0.5, 2.2),
+            0xffffff,
+            Phaser.Math.FloatBetween(0.2, 0.9)
+        );
+        star.speed = Phaser.Math.FloatBetween(0.5, 2.0);
         stars.push(star);
     }
 
@@ -78,11 +91,11 @@ function create() {
     // 3. Render Hangar Scene
     createHangarScene();
 
-    // 4. Input Setup
+    // 4. Touch & Pointer Drag Controls (Mobile & Desktop)
     cursors = sceneRef.input.keyboard.createCursorKeys();
     sceneRef.input.on('pointermove', (pointer) => {
         if (isGaming && playerShip) {
-            playerShip.x = Phaser.Math.Clamp(pointer.x, 30, width - 30);
+            playerShip.x = Phaser.Math.Clamp(pointer.x, 40, width - 40);
         }
     });
 
@@ -91,52 +104,65 @@ function create() {
 }
 
 function update(time, delta) {
-    // Twinkle stars
+    const height = sceneRef.cameras.main.height;
+
+    // Move starfield background downward for space speed feel
     stars.forEach(s => {
-        s.alpha += Phaser.Math.FloatBetween(-0.02, 0.02);
-        if (s.alpha > 0.9) s.alpha = 0.9;
-        if (s.alpha < 0.2) s.alpha = 0.2;
+        s.y += s.speed;
+        if (s.y > height) {
+            s.y = -10;
+            s.x = Phaser.Math.Between(0, sceneRef.cameras.main.width);
+        }
     });
 
-    if (currentMode === 'hangar' && hangarShipGroup) {
-        hangarShipGroup.rotation += 0.005;
+    if (currentMode === 'hangar' && hangarContainer) {
+        hangarContainer.y = (height / 2 - 30) + Math.sin(time / 400) * 12;
     }
 
     if (isGaming) {
-        // Keyboard controls
+        const shipData = SHIPS[playerData.selectedShip];
+
+        // Keyboard controls fallback
         if (cursors.left.isDown && playerShip) {
-            playerShip.x -= 6;
+            playerShip.x -= shipData.speed * (delta / 1000);
         } else if (cursors.right.isDown && playerShip) {
-            playerShip.x += 6;
+            playerShip.x += shipData.speed * (delta / 1000);
         }
 
-        // Move falling items and meteors
+        if (playerShip) {
+            playerShip.x = Phaser.Math.Clamp(playerShip.x, 40, sceneRef.cameras.main.width - 40);
+        }
+
+        // Falling Crystals
         itemsGroup.getChildren().forEach(item => {
             item.y += item.speed;
-            // Collision check
-            if (playerShip && Phaser.Math.Distance.Between(playerShip.x, playerShip.y, item.x, item.y) < 35) {
-                collectedCrystals += item.value;
-                collectedMetal += item.value * 2;
-                document.getElementById('game-crystals').innerText = collectedCrystals;
-                if (tg) tg.HapticFeedback.impactOccurred('light');
+            item.rotation += 0.04;
 
-                // Floating text
-                showFloatingText(item.x, item.y, `+${item.value} 💎`);
+            if (playerShip && Phaser.Math.Distance.Between(playerShip.x, playerShip.y, item.x, item.y) < 45) {
+                const yieldVal = Math.round(item.value * shipData.yieldMul);
+                collectedCrystals += yieldVal;
+                collectedMetal += yieldVal * 3;
+                document.getElementById('game-crystals').innerText = collectedCrystals;
+
+                if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+
+                showFloatingText(item.x, item.y, `+${yieldVal} 💎`, '#38bdf8');
                 item.destroy();
-            } else if (item.y > sceneRef.cameras.main.height + 50) {
+            } else if (item.y > height + 50) {
                 item.destroy();
             }
         });
 
+        // Falling Asteroid Meteors
         meteorsGroup.getChildren().forEach(m => {
             m.y += m.speed;
-            m.rotation += 0.03;
-            if (playerShip && Phaser.Math.Distance.Between(playerShip.x, playerShip.y, m.x, m.y) < 35) {
-                // Meteor hit effect
-                showFloatingText(m.x, m.y, '💥 Удар!');
-                if (tg) tg.HapticFeedback.notificationOccurred('warning');
+            m.rotation += 0.02;
+
+            if (playerShip && Phaser.Math.Distance.Between(playerShip.x, playerShip.y, m.x, m.y) < 45) {
+                showFloatingText(m.x, m.y, '💥 Удар!', '#ef4444');
+                if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
                 m.destroy();
-            } else if (m.y > sceneRef.cameras.main.height + 50) {
+            } else if (m.y > height + 50) {
                 m.destroy();
             }
         });
@@ -148,17 +174,19 @@ function createHangarScene() {
     const width = sceneRef.cameras.main.width;
     const height = sceneRef.cameras.main.height;
 
-    if (hangarShipGroup) hangarShipGroup.destroy();
-    hangarShipGroup = sceneRef.add.container(width / 2, height / 2 - 20);
+    if (hangarContainer) hangarContainer.destroy();
+    hangarContainer = sceneRef.add.container(width / 2, height / 2 - 30);
 
     const shipData = SHIPS[playerData.selectedShip];
 
-    // Ship Body (Procedural Sci-Fi 2D Graphic)
-    const body = sceneRef.add.polygon(0, 0, [0, -50, 35, 30, -35, 30], shipData.color);
-    const core = sceneRef.add.circle(0, 0, 12, 0xffffff);
-    const aura = sceneRef.add.circle(0, 0, 60, shipData.color, 0.2);
+    // Aura ring behind ship
+    const aura = sceneRef.add.circle(0, 0, 90, 0x38bdf8, 0.15);
 
-    hangarShipGroup.add([aura, body, core]);
+    // Ship Sprite PNG
+    const shipSprite = sceneRef.add.image(0, 0, shipData.id);
+    shipSprite.setScale(shipData.scale);
+
+    hangarContainer.add([aura, shipSprite]);
 }
 
 /* 🎮 MINIGAME LAUNCHER */
@@ -166,12 +194,13 @@ function startMinigame() {
     const width = sceneRef.cameras.main.width;
     const height = sceneRef.cameras.main.height;
 
-    if (hangarShipGroup) hangarShipGroup.setVisible(false);
+    if (hangarContainer) hangarContainer.setVisible(false);
 
-    // Create Player Spaceship
     const shipData = SHIPS[playerData.selectedShip];
     if (playerShip) playerShip.destroy();
-    playerShip = sceneRef.add.polygon(width / 2, height - 120, [0, -30, 20, 20, -20, 20], shipData.color);
+
+    playerShip = sceneRef.add.image(width / 2, height - 140, shipData.id);
+    playerShip.setScale(shipData.scale * 0.85);
 
     isGaming = true;
     gameTimer = 20;
@@ -182,14 +211,14 @@ function startMinigame() {
 
     // Spawners
     sceneRef.time.addEvent({
-        delay: 600,
-        callback: spawnLootItem,
+        delay: 500,
+        callback: spawnCrystalItem,
         loop: true
     });
 
     sceneRef.time.addEvent({
-        delay: 900,
-        callback: spawnMeteor,
+        delay: 750,
+        callback: spawnMeteorItem,
         loop: true
     });
 
@@ -208,20 +237,24 @@ function startMinigame() {
     });
 }
 
-function spawnLootItem() {
+function spawnCrystalItem() {
     if (!isGaming) return;
     const x = Phaser.Math.Between(40, sceneRef.cameras.main.width - 40);
-    const item = sceneRef.add.circle(x, -20, 10, 0x38bdf8);
-    item.speed = Phaser.Math.Between(4, 7);
-    item.value = Phaser.Math.Between(5, 15);
-    itemsGroup.add(item);
+
+    // Glowing 2D Crystal Gem Shape
+    const c = sceneRef.add.polygon(x, -20, [0, -12, 10, 0, 0, 12, -10, 0], 0x38bdf8);
+    c.speed = Phaser.Math.Between(4, 7);
+    c.value = Phaser.Math.Between(5, 15);
+    itemsGroup.add(c);
 }
 
-function spawnMeteor() {
+function spawnMeteorItem() {
     if (!isGaming) return;
     const x = Phaser.Math.Between(40, sceneRef.cameras.main.width - 40);
-    const m = sceneRef.add.circle(x, -30, Phaser.Math.Between(12, 22), 0x64748b);
-    m.speed = Phaser.Math.Between(5, 8);
+
+    const m = sceneRef.add.image(x, -30, 'asteroid');
+    m.setScale(Phaser.Math.FloatBetween(0.12, 0.22));
+    m.speed = Phaser.Math.Between(5, 9);
     meteorsGroup.add(m);
 }
 
@@ -232,9 +265,9 @@ function endMinigame() {
     itemsGroup.clear(true, true);
     meteorsGroup.clear(true, true);
 
-    if (hangarShipGroup) hangarShipGroup.setVisible(true);
+    if (hangarContainer) hangarContainer.setVisible(true);
 
-    // Send rewards to backend
+    // Sync rewards with PostgreSQL DB backend
     fetch('/api/minigame_reward', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -242,7 +275,7 @@ function endMinigame() {
             telegram_id: telegramId,
             metal: collectedMetal,
             crystal: collectedCrystals,
-            deuterium: 10
+            deuterium: 15
         })
     })
     .then(res => res.json())
@@ -252,19 +285,24 @@ function endMinigame() {
             playerData.crystal = data.new_total.crystal;
             playerData.deuterium = data.new_total.deuterium;
             updateUI();
-            alert(`🎉 Рейд завершен!\nДобыто: +${collectedMetal} Металла, +${collectedCrystals} Кристаллов!`);
         }
     })
-    .catch(err => console.error('Reward error:', err));
+    .catch(err => console.error('Reward sync error:', err));
 
     switchMode('hangar');
 }
 
-function showFloatingText(x, y, str) {
-    const txt = sceneRef.add.text(x, y, str, { fontSize: '16px', fill: '#38bdf8', fontStyle: 'bold' });
+function showFloatingText(x, y, str, colorHex) {
+    const txt = sceneRef.add.text(x, y, str, {
+        fontSize: '18px',
+        fill: colorHex,
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 3
+    });
     sceneRef.tweens.add({
         targets: txt,
-        y: y - 40,
+        y: y - 45,
         alpha: 0,
         duration: 700,
         onComplete: () => txt.destroy()
@@ -285,7 +323,8 @@ function switchMode(mode) {
         mainBtn.innerText = '⚡ НАЧАТЬ ВЫЛЕТ!';
     } else {
         hud.classList.add('hidden');
-        mainBtn.innerText = '🚀 Сменить Корабль в Ангаре';
+        const shipData = SHIPS[playerData.selectedShip];
+        mainBtn.innerText = `🛸 Корабль: ${shipData.name} (Сменить)`;
     }
 }
 
@@ -296,7 +335,9 @@ function handleMainAction() {
         // Cycle selected ship
         playerData.selectedShip = (playerData.selectedShip + 1) % SHIPS.length;
         createHangarScene();
-        if (tg) tg.HapticFeedback.selectionChanged();
+        if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        const shipData = SHIPS[playerData.selectedShip];
+        document.getElementById('main-action-btn').innerText = `🛸 Корабль: ${shipData.name} (Сменить)`;
     }
 }
 
