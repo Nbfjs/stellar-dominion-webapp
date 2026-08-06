@@ -46,6 +46,7 @@ body, html {
     border-radius: 16px;
     padding: 12px 16px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    transition: all 0.3s ease;
 }
 
 .header-card h2 {
@@ -103,7 +104,7 @@ body, html {
 }
 
 .minigame-hud.hidden {
-    display: none;
+    display: none !important;
 }
 
 .score-card {
@@ -148,4 +149,27 @@ body, html {
 .btn-secondary {
     background: rgba(255, 255, 255, 0.1);
     color: #cbd5e1;
+}
+
+/* 🎮 ACTIVE FLIGHT MODE: HIDE OVERLAY UI FOR 100% CLEAR VIEW */
+body.gaming-active .header-card,
+body.gaming-active .tab-bar,
+body.gaming-active .footer-card {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(-20px);
+}
+
+body.gaming-active .minigame-hud {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    padding: 10px 22px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid #38bdf8;
+    border-radius: 25px;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+    z-index: 100;
 }
